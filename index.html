@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pötty Túlélő</title>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#1a1d27; --accent:#ffd23f; --text:#e8e8ee; --danger:#ff4757;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  @media (prefers-color-scheme: light){
+    :root:not([data-theme="dark"]){ --bg:#eef0f5; --panel:#ffffff; --text:#1a1d27; }
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;overflow:hidden;}
+  #wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;padding:10px;}
+  h1{margin:4px 0;font-size:1.3rem;letter-spacing:.5px;}
+  #hud{display:flex;gap:20px;font-weight:600;background:var(--panel);padding:8px 18px;border-radius:10px;}
+  #hud span.label{opacity:.6;font-weight:400;margin-right:4px;}
+  #muteBtn{background:none;border:none;font-size:1.1rem;cursor:pointer;padding:0 2px;color:var(--text);}
+  canvas{background:radial-gradient(circle at center,#20242f,#101218);border-radius:12px;
+    max-width:100%;height:auto;touch-action:none;box-shadow:0 0 0 2px #2c3040;}
+  #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:var(--panel);padding:24px 32px;border-radius:14px;text-align:center;display:none;}
+  #msg button{margin-top:12px;padding:10px 20px;border:none;border-radius:8px;background:var(--accent);
+    color:#1a1a1a;font-weight:700;cursor:pointer;font-size:1rem;display:block;width:100%;}
+  #msg button.secondary{background:transparent;color:var(--text);box-shadow:0 0 0 2px #2c3040;}
+  #menu{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:rgba(24,27,34,.92);padding:28px 36px;border-radius:14px;text-align:center;
+    display:none;flex-direction:column;gap:10px;min-width:220px;
+    box-shadow:0 0 0 2px #3a3f4c,0 4px 14px rgba(0,0,0,.4);}
+  #diffMenu{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:transparent;padding:0;text-align:center;
+    display:none;flex-direction:column;align-items:center;gap:16px;
+    width:min(94vw,640px);box-sizing:border-box;}
+  #diffMenu .menuTitle{text-shadow:0 2px 6px rgba(0,0,0,.6);color:#ffffff;
+    padding:8px 18px;border-radius:10px;background:rgba(24,27,34,.85);
+    box-shadow:0 0 0 2px #3a3f4c;}
+  #diffOptions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;}
+  .diffCard{background:rgba(24,27,34,.94);border:none;border-radius:12px;padding:14px 8px;
+    cursor:pointer;display:flex;flex-direction:column;gap:6px;align-items:center;
+    box-shadow:0 0 0 2px transparent,0 4px 14px rgba(0,0,0,.4);transition:box-shadow .15s,transform .15s;
+    color:#f5f6fa;min-width:0;}
+  .diffCard:hover{transform:translateY(-2px);}
+  .diffCard.easy{box-shadow:0 0 0 2px #2ecc71,0 4px 14px rgba(0,0,0,.4);}
+  .diffCard.normal{box-shadow:0 0 0 2px #ffd23f,0 4px 14px rgba(0,0,0,.4);}
+  .diffCard.hard{box-shadow:0 0 0 2px #ff4757,0 4px 14px rgba(0,0,0,.4);}
+  .diffName{font-size:1.05rem;font-weight:800;color:#ffffff;}
+  .diffDesc{font-size:.74rem;color:#d7dae2;opacity:1;line-height:1.3;}
+  #diffBack.big{font-size:1.15rem;padding:12px 36px;}
+  #recordMenu{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:transparent;padding:0;text-align:center;
+    display:none;flex-direction:column;align-items:center;gap:16px;
+    width:min(94vw,640px);box-sizing:border-box;}
+  #recordMenu .menuTitle{text-shadow:0 2px 6px rgba(0,0,0,.6);color:#ffffff;
+    padding:8px 18px;border-radius:10px;background:rgba(24,27,34,.85);
+    box-shadow:0 0 0 2px #3a3f4c;}
+  #recordOptions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;}
+  .recordNum{font-size:1.3rem;color:#ffd23f;margin-top:2px;}
+  .menuTitle{font-size:1.2rem;font-weight:700;margin-bottom:6px;}
+  #menuTitle{font-size:1.2rem;font-weight:700;color:#ffffff;text-shadow:0 2px 6px rgba(0,0,0,.6);}
+  #menuSub{opacity:1;color:#d7dae2;font-size:.85rem;margin-bottom:6px;}
+  #menu button, #diffMenu button:not(.diffCard), #recordMenu button{padding:10px 20px;border:none;border-radius:8px;background:var(--accent);
+    color:#1a1a1a;font-weight:700;cursor:pointer;font-size:1rem;}
+  #menu button.secondary, #diffMenu button.secondary, #recordMenu button.secondary{background:transparent;color:var(--text);box-shadow:0 0 0 2px #2c3040;}
+  #diffMenu button.secondary{box-shadow:0 0 0 2px #ffffff88;background:rgba(24,27,34,.85);color:#f5f6fa;}
+  #menu button.secondary{box-shadow:0 0 0 2px #ffffff88;background:rgba(24,27,34,.85);color:#f5f6fa;}
+  #recordMenu button.secondary{box-shadow:0 0 0 2px #ffffff88;background:rgba(24,27,34,.85);color:#f5f6fa;}
+  #hint{opacity:.55;font-size:.85rem;}
+  #notice{min-height:1.4em;font-weight:700;font-size:.95rem;opacity:0;transition:opacity .2s;}
+  #notice.show{opacity:1;}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>🔴 Pötty Túlélő</h1>
+  <div id="hud">
+    <div><span class="label">Pont:</span><span id="score">0</span></div>
+    <div><span class="label">Élet:</span><span id="health">❤️❤️❤️</span></div>
+    <button id="muteBtn" title="Hang ki/be">🔊</button>
+  </div>
+  <div id="notice"></div>
+  <div style="position:relative;">
+    <canvas id="c" width="720" height="480"></canvas>
+    <div id="msg">
+      <div id="msgText">Vége</div>
+      <button id="restart">Újra</button>
+      <button id="toMenu" class="secondary">Főmenü</button>
+    </div>
+    <div id="menu">
+      <div id="menuTitle">🔴 Pötty Túlélő</div>
+      <div id="menuSub">Gyűjtsd a sárgákat, kerüld a kékeket</div>
+      <button id="startBtn">Indítás</button>
+      <button id="recordBtn" class="secondary">Rekord</button>
+      <button id="exitBtn" class="secondary">Kilépés</button>
+    </div>
+    <div id="diffMenu">
+      <div class="menuTitle">Válassz nehézséget</div>
+      <div id="diffOptions">
+        <button id="diffEasy" class="diffCard easy">
+          <span class="diffName">Könnyű 🟢</span>
+          <span class="diffDesc">Kevesebb ellenfél<br>5 coinonként 2 power-up</span>
+        </button>
+        <button id="diffNormal" class="diffCard normal">
+          <span class="diffName">Normál 🟡</span>
+          <span class="diffDesc">Közepesen sok ellenfél<br>5 coinonként 1 power up<br>egyébként alakul</span>
+        </button>
+        <button id="diffHard" class="diffCard hard">
+          <span class="diffName">Nehéz 🔴</span>
+          <span class="diffDesc">Sok ellenfél<br>10 coinonként 1 power-up</span>
+        </button>
+      </div>
+      <button id="diffBack" class="secondary big">Vissza ◀️</button>
+    </div>
+    <div id="recordMenu">
+      <div class="menuTitle">Rekord</div>
+      <div id="recordOptions">
+        <div class="diffCard easy">
+          <span class="diffName">Könnyű 🟢</span>
+          <span class="diffDesc">Rekord</span>
+          <span class="diffName recordNum" id="recordEasy">0</span>
+        </div>
+        <div class="diffCard normal">
+          <span class="diffName">Normál 🟡</span>
+          <span class="diffDesc">Rekord</span>
+          <span class="diffName recordNum" id="recordNormal">0</span>
+        </div>
+        <div class="diffCard hard">
+          <span class="diffName">Nehéz 🔴</span>
+          <span class="diffDesc">Rekord</span>
+          <span class="diffName recordNum" id="recordHard">0</span>
+        </div>
+      </div>
+      <button id="recordBack" class="secondary big">Vissza ◀️</button>
+    </div>
+  </div>
+  <div id="hint">WASD/nyilak: mozgás — Esc: menü — 🟢 pajzs · 🔴 +élet · 🟣 x2 érme · 🟠 gyorsaság (5 mp)</div>
+</div>
+<script>
+const cv=document.getElementById('c'), ctx=cv.getContext('2d');
+const scoreEl=document.getElementById('score'), healthEl=document.getElementById('health');
+const noticeEl=document.getElementById('notice');
+let noticeTimer=null;
+function showNotice(text){
+  noticeEl.textContent=text;
+  noticeEl.classList.add('show');
+  clearTimeout(noticeTimer);
+  noticeTimer=setTimeout(()=>noticeEl.classList.remove('show'),2500);
+}
+
+// --- Hangeffektek (Web Audio API, nincs szükség fájlokra) ---
+let highscores={easy:0, normal:0, hard:0};
+try{
+  const saved=localStorage.getItem('dotSurvivorHighscores');
+  if(saved){
+    const parsed=JSON.parse(saved);
+    for(const k of ['easy','normal','hard']) if(typeof parsed[k]==='number') highscores[k]=parsed[k];
+  }
+}catch(e){}
+function saveHighscoreIfNeeded(){
+  if(score>highscores[difficulty]){
+    highscores[difficulty]=score;
+    try{ localStorage.setItem('dotSurvivorHighscores', JSON.stringify(highscores)); }catch(e){}
+    return true;
+  }
+  return false;
+}
+
+let audioCtx=null, muted=false;
+const muteBtn=document.getElementById('muteBtn');
+function getCtx(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+function beep({freq=440,duration=0.1,type='sine',volume=0.2,slideTo=null}={}){
+  if(muted) return;
+  try{
+    const ctx=getCtx();
+    const osc=ctx.createOscillator(), gain=ctx.createGain();
+    osc.type=type;
+    osc.frequency.setValueAtTime(freq,ctx.currentTime);
+    if(slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo,ctx.currentTime+duration);
+    gain.gain.setValueAtTime(volume,ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+duration);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime+duration);
+  }catch(e){}
+}
+const sfx={
+  gem:()=>beep({freq:880,duration:0.08,type:'sine',volume:0.15}),
+  powerup:()=>beep({freq:520,duration:0.18,type:'triangle',volume:0.22,slideTo:1040}),
+  denied:()=>beep({freq:300,duration:0.12,type:'square',volume:0.15,slideTo:220}),
+  hit:()=>beep({freq:200,duration:0.22,type:'sawtooth',volume:0.25,slideTo:60}),
+  gameover:()=>beep({freq:320,duration:0.5,type:'square',volume:0.2,slideTo:70}),
+  click:()=>beep({freq:600,duration:0.05,type:'square',volume:0.12})
+};
+muteBtn.onclick=()=>{
+  muted=!muted;
+  muteBtn.textContent = muted ? '🔇' : '🔊';
+};
+
+// --- Háttérzene (procedurálisan generált hurkok) ---
+const MENU_NOTES=[261.63,329.63,392.00,329.63,440.00,392.00,329.63,293.66];
+const GAME_NOTES=[392.00,440.00,523.25,440.00,587.33,523.25,440.00,392.00];
+let musicTimeout=null, currentMusic=null;
+
+function scheduleLoop(track, notes, stepDur, waveType, vol, bass){
+  let i=0;
+  function step(){
+    if(currentMusic!==track) return;
+    if(!muted){
+      beep({freq:notes[i%notes.length], duration:stepDur*0.85, type:waveType, volume:vol});
+      if(bass && i%2===0) beep({freq:notes[0]/2, duration:stepDur*1.6, type:'sine', volume:vol*0.5});
+    }
+    i++;
+    musicTimeout=setTimeout(step, stepDur*1000);
+  }
+  step();
+}
+function playMenuMusic(){
+  if(currentMusic==='menu') return;
+  clearTimeout(musicTimeout);
+  currentMusic='menu';
+  scheduleLoop('menu', MENU_NOTES, 0.5, 'sine', 0.05, false);
+}
+function playGameMusic(){
+  if(currentMusic==='game') return;
+  clearTimeout(musicTimeout);
+  currentMusic='game';
+  scheduleLoop('game', GAME_NOTES, 0.2, 'triangle', 0.06, true);
+}
+function stopMusic(){
+  clearTimeout(musicTimeout);
+  currentMusic=null;
+}
+let musicStarted=false;
+function tryStartAmbientMusic(){
+  if(musicStarted) return;
+  musicStarted=true;
+  getCtx();
+  if(appState==='menu') playMenuMusic();
+}
+window.addEventListener('pointerdown', tryStartAmbientMusic, {once:true});
+window.addEventListener('keydown', tryStartAmbientMusic, {once:true});
+const msg=document.getElementById('msg'), msgText=document.getElementById('msgText');
+const W=cv.width,H=cv.height;
+
+let keys={};
+addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
+
+function rand(a,b){return a+Math.random()*(b-a);}
+
+// --- Egyedi animált menüháttér ---
+let idleParticles=[], idleRAF=null, idleLastTime=null;
+function initIdleParticles(){
+  idleParticles=[];
+  const colors=['#ffd23f','#3f8dff','#2ecc71','#a55eea','#ffa502','#ff4757'];
+  for(let i=0;i<16;i++){
+    idleParticles.push({
+      x:rand(0,W), y:rand(0,H), r:rand(6,16),
+      vx:rand(-14,14), vy:rand(-14,14),
+      color:colors[Math.floor(rand(0,colors.length))],
+      phase:rand(0,Math.PI*2)
+    });
+  }
+}
+function idleLoop(now){
+  if(appState!=='menu' && appState!=='paused'){ idleRAF=null; return; }
+  const dt=idleLastTime ? Math.min((now-idleLastTime)/1000,0.05) : 0;
+  idleLastTime=now;
+  const hue=(now/60)%360;
+  const grad=ctx.createRadialGradient(W/2,H/2,40,W/2,H/2,W*0.75);
+  grad.addColorStop(0,`hsl(${hue},45%,17%)`);
+  grad.addColorStop(1,'#0b0d13');
+  ctx.fillStyle=grad;
+  ctx.fillRect(0,0,W,H);
+  for(const p of idleParticles){
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.x<p.r||p.x>W-p.r) p.vx*=-1;
+    if(p.y<p.r||p.y>H-p.r) p.vy*=-1;
+    const pulse=1+0.2*Math.sin(now/500+p.phase);
+    ctx.globalAlpha=0.5;
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*pulse,0,7); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+  idleRAF=requestAnimationFrame(idleLoop);
+}
+function startIdleAnimation(){
+  if(idleRAF) return;
+  if(idleParticles.length===0) initIdleParticles();
+  idleLastTime=null;
+  idleRAF=requestAnimationFrame(idleLoop);
+}
+function stopIdleAnimation(){
+  if(idleRAF){ cancelAnimationFrame(idleRAF); idleRAF=null; }
+}
+
+let player, gems, enemies, powerUps, score, gemsCollected, lives, invincibleUntil, shieldUntil, coinMultiplierUntil, speedBoostUntil, running, lastTime;
+let appState='menu'; // 'menu' | 'playing' | 'paused' | 'gameover'
+const MAX_LIVES=3;
+const BASE_SPEED=220;
+let difficulty='normal';
+const DIFFICULTIES={
+  easy:{baseEnemies:2, enemyDivisor:40, powerupEvery:5, powerupCount:2},
+  normal:{baseEnemies:3, enemyDivisor:25, powerupEvery:5, powerupCount:1},
+  hard:{baseEnemies:5, enemyDivisor:15, powerupEvery:10, powerupCount:1}
+};
+
+const POWERUP_TYPES=[
+  {type:'shield', color:'#2ecc71', letter:'S'},
+  {type:'life', color:'#ff4757', letter:'+'},
+  {type:'coin2x', color:'#a55eea', letter:'x2'},
+  {type:'speed', color:'#ffa502', letter:'>'}
+];
+
+function drawHearts(){
+  let s='';
+  for(let i=0;i<MAX_LIVES;i++) s+= i<lives ? '❤️' : '🖤';
+  healthEl.textContent=s;
+}
+
+function spawnGem(){
+  return {x:rand(20,W-20), y:rand(20,H-20), r:10};
+}
+function spawnEnemy(){
+  const edge=Math.floor(rand(0,4));
+  let x,y;
+  if(edge===0){x=0;y=rand(0,H);} else if(edge===1){x=W;y=rand(0,H);}
+  else if(edge===2){x=rand(0,W);y=0;} else {x=rand(0,W);y=H;}
+  const a=Math.atan2(H/2-y,W/2-x);
+  return {x,y,r:16,vx:Math.cos(a)*rand(40,90),vy:Math.sin(a)*rand(40,90)};
+}
+function spawnPowerUp(){
+  const def=POWERUP_TYPES[Math.floor(rand(0,4))];
+  return {x:rand(30,W-30), y:rand(30,H-30), r:13, ...def};
+}
+
+function init(){
+  const cfg=DIFFICULTIES[difficulty];
+  player={x:W/2,y:H/2,r:15,speed:BASE_SPEED};
+  gems=Array.from({length:8},spawnGem);
+  enemies=Array.from({length:cfg.baseEnemies},spawnEnemy);
+  powerUps=[];
+  score=0; gemsCollected=0; lives=MAX_LIVES;
+  invincibleUntil=0; shieldUntil=0; coinMultiplierUntil=0; speedBoostUntil=0;
+  running=true;
+  scoreEl.textContent=score; drawHearts();
+  clearTimeout(noticeTimer); noticeEl.classList.remove('show');
+  msg.style.display='none';
+  playGameMusic();
+  lastTime=performance.now();
+  requestAnimationFrame(loop);
+}
+
+function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y);}
+
+function loop(now){
+  if(!running) return;
+  const dt=Math.min((now-lastTime)/1000,0.05);
+  lastTime=now;
+
+  let dx=0,dy=0;
+  if(keys['w']||keys['arrowup'])dy-=1;
+  if(keys['s']||keys['arrowdown'])dy+=1;
+  if(keys['a']||keys['arrowleft'])dx-=1;
+  if(keys['d']||keys['arrowright'])dx+=1;
+  player.speed = now<speedBoostUntil ? BASE_SPEED*1.6 : BASE_SPEED;
+  if(dx||dy){
+    const len=Math.hypot(dx,dy);
+    player.x+=dx/len*player.speed*dt;
+    player.y+=dy/len*player.speed*dt;
+  }
+  player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+  player.y=Math.max(player.r,Math.min(H-player.r,player.y));
+
+  for(const e of enemies){
+    e.x+=e.vx*dt; e.y+=e.vy*dt;
+    if(e.x<0||e.x>W) e.vx*=-1;
+    if(e.y<0||e.y>H) e.vy*=-1;
+  }
+
+  for(let i=gems.length-1;i>=0;i--){
+    if(dist(player,gems[i])<player.r+gems[i].r){
+      gems.splice(i,1);
+      gemsCollected+=1;
+      score += now<coinMultiplierUntil ? 20 : 10;
+      scoreEl.textContent=score;
+      sfx.gem();
+      gems.push(spawnGem());
+      const cfg=DIFFICULTIES[difficulty];
+      const targetEnemies=cfg.baseEnemies+Math.floor(score/cfg.enemyDivisor);
+      if(enemies.length<targetEnemies) enemies.push(spawnEnemy());
+      if(gemsCollected%cfg.powerupEvery===0){
+        for(let k=0;k<cfg.powerupCount;k++) powerUps.push(spawnPowerUp());
+      }
+    }
+  }
+
+  for(let i=powerUps.length-1;i>=0;i--){
+    const p=powerUps[i];
+    if(dist(player,p)<player.r+p.r){
+      powerUps.splice(i,1);
+      if(p.type==='shield'){ shieldUntil=now+5000; showNotice('🛡️ Pajzs — 5 mp'); sfx.powerup(); }
+      else if(p.type==='life'){
+        if(lives<MAX_LIVES){ lives+=1; showNotice('❤️ +1 élet'); sfx.powerup(); }
+        else { showNotice('❤️ Már tele van az életed!'); sfx.denied(); }
+      }
+      else if(p.type==='coin2x'){ coinMultiplierUntil=now+5000; showNotice('🟣 Dupla érme — 5 mp'); sfx.powerup(); }
+      else if(p.type==='speed'){ speedBoostUntil=now+5000; showNotice('🟠 Gyorsaság — 5 mp'); sfx.powerup(); }
+      drawHearts();
+    }
+  }
+
+  const nowMs=now;
+  if(nowMs>=invincibleUntil && nowMs>=shieldUntil){
+    for(const e of enemies){
+      if(dist(player,e)<player.r+e.r-3){
+        lives-=1;
+        drawHearts();
+        sfx.hit();
+        const ang=Math.atan2(player.y-e.y,player.x-e.x);
+        player.x+=Math.cos(ang)*60;
+        player.y+=Math.sin(ang)*60;
+        player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+        player.y=Math.max(player.r,Math.min(H-player.r,player.y));
+        invincibleUntil=nowMs+1000;
+        if(lives<=0){ gameOver(); return; }
+        break;
+      }
+    }
+  }
+
+  const shielded = nowMs<shieldUntil;
+  const flashing = (nowMs<invincibleUntil && Math.floor(nowMs/100)%2===0);
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#ffd23f';
+  for(const g of gems){ ctx.beginPath(); ctx.arc(g.x,g.y,g.r,0,7); ctx.fill(); }
+  for(const p of powerUps){
+    ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.font='bold 12px system-ui'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(p.letter,p.x,p.y+1);
+  }
+  ctx.fillStyle='#3f8dff';
+  for(const e of enemies){ ctx.beginPath(); ctx.arc(e.x,e.y,e.r,0,7); ctx.fill(); }
+  ctx.fillStyle= flashing ? '#ff9aa2' : '#ff4757';
+  ctx.beginPath(); ctx.arc(player.x,player.y,player.r,0,7); ctx.fill();
+  if(shielded){
+    ctx.strokeStyle='#2ecc71'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(player.x,player.y,player.r+6,0,7); ctx.stroke();
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function gameOver(){
+  running=false; appState='gameover';
+  stopMusic();
+  sfx.gameover();
+  const isNew=saveHighscoreIfNeeded();
+  msgText.textContent = isNew
+    ? `Vége! Pontszám: ${score} — Új rekord! 🏆`
+    : `Vége! Pontszám: ${score} (Rekord: ${highscores[difficulty]})`;
+  msg.style.display='block';
+}
+
+document.getElementById('restart').onclick=()=>{ sfx.click(); appState='playing'; init(); };
+document.getElementById('toMenu').onclick=()=>{
+  sfx.click();
+  running=false; appState='menu';
+  msg.style.display='none';
+  playMenuMusic();
+  startIdleAnimation();
+  showMenu(false);
+};
+
+const menu=document.getElementById('menu'), menuTitle=document.getElementById('menuTitle'),
+  menuSub=document.getElementById('menuSub'), startBtn=document.getElementById('startBtn'), exitBtn=document.getElementById('exitBtn');
+const diffMenu=document.getElementById('diffMenu');
+
+function showMenu(paused){
+  menu.style.display='flex';
+  diffMenu.style.display='none';
+  recordMenu.style.display='none';
+  menuTitle.textContent = paused ? '⏸️ Szünet' : '🔴 Pötty Túlélő';
+  menuSub.textContent = paused ? `Pontszám: ${score}` : 'Gyűjtsd a sárgákat, kerüld a kékeket';
+  startBtn.textContent = paused ? 'Folytatás' : 'Indítás';
+  exitBtn.textContent = paused ? 'Főmenü' : 'Kilépés';
+}
+
+startBtn.onclick=()=>{
+  sfx.click();
+  if(appState==='paused'){
+    stopIdleAnimation();
+    menu.style.display='none';
+    appState='playing'; running=true; lastTime=performance.now();
+    playGameMusic();
+    requestAnimationFrame(loop);
+  } else {
+    menu.style.display='none';
+    diffMenu.style.display='flex';
+  }
+};
+
+function startWithDifficulty(d){
+  sfx.click();
+  difficulty=d;
+  diffMenu.style.display='none';
+  stopIdleAnimation();
+  appState='playing';
+  init();
+}
+document.getElementById('diffEasy').onclick=()=>startWithDifficulty('easy');
+document.getElementById('diffNormal').onclick=()=>startWithDifficulty('normal');
+document.getElementById('diffHard').onclick=()=>startWithDifficulty('hard');
+document.getElementById('diffBack').onclick=()=>{
+  sfx.click();
+  diffMenu.style.display='none';
+  showMenu(false);
+};
+
+const recordMenu=document.getElementById('recordMenu');
+const recordEasyEl=document.getElementById('recordEasy'), recordNormalEl=document.getElementById('recordNormal'), recordHardEl=document.getElementById('recordHard');
+document.getElementById('recordBtn').onclick=()=>{
+  sfx.click();
+  menu.style.display='none';
+  recordEasyEl.textContent=highscores.easy;
+  recordNormalEl.textContent=highscores.normal;
+  recordHardEl.textContent=highscores.hard;
+  recordMenu.style.display='flex';
+};
+document.getElementById('recordBack').onclick=()=>{
+  sfx.click();
+  recordMenu.style.display='none';
+  showMenu(appState==='paused');
+};
+
+exitBtn.onclick=()=>{
+  sfx.click();
+  if(appState==='paused'){
+    running=false; appState='menu';
+    playMenuMusic();
+    startIdleAnimation();
+    showMenu(false);
+    return;
+  }
+  running=false; appState='menu';
+  playMenuMusic();
+  startIdleAnimation();
+  window.close();
+  setTimeout(()=>{
+    menu.style.display='flex';
+    menuTitle.textContent='👋 Viszlát!';
+    menuSub.textContent='A lapot kézzel zárhatod be, vagy játssz tovább.';
+    startBtn.textContent='Indítás';
+    exitBtn.textContent='Kilépés';
+  },150);
+};
+
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    if(appState==='playing'){
+      running=false; appState='paused';
+      playMenuMusic();
+      startIdleAnimation();
+      showMenu(true);
+    } else if(appState==='paused'){
+      menu.style.display='none';
+      appState='playing'; running=true; lastTime=performance.now();
+      stopIdleAnimation();
+      playGameMusic();
+      requestAnimationFrame(loop);
+    }
+  }
+});
+
+showMenu(false);
+startIdleAnimation();
+
+</script>
+</body>
+</html>
